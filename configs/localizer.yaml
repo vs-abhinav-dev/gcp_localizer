@@ -1,0 +1,23 @@
+# GCP Localizer Model Configuration
+
+data:
+  annotation_file: "data/raw/gcp_marks.json"
+  raw_images_dir: "data/raw/train_dataset"
+  processed_dir: "data/processed"
+  val_ratio: 0.15
+  crop_size: 512
+  output_size: 224
+  num_pos_aug: 5
+  max_offset: 128
+  seed: 42
+
+model:
+  pretrained: true
+  dropout: 0.2
+
+training:
+  batch_size: 32
+  num_epochs: 30
+  learning_rate: 0.0001
+  num_workers: 2
+  save_path: "artifacts/models/best_localizer_model.pt"

@@ -1,0 +1,21 @@
+graph TD
+    subgraph Implemented_Pipeline ["Completed / Implemented Pipeline (Task 4 & 5)"]
+        A["Raw Aerial Images (JSON Annotations)"] --> B["Image-Level Split (Leakage-Free)"]
+        B --> C["Crop Generation (512×512 -> 224×224 .npz)"]
+        C --> D["GCP Presence Classifier (ResNet18 Binary)"]
+        D --> E{"GCP Present?"}
+        E -- "No" --> F["Output: No GCP Detected"]
+        E -- "Yes" --> G["GCP Localizer (ResNet18 Regression)"]
+        G --> H["Output: Localized Center Coordinates (x, y)"]
+    end
+
+    subgraph Future_Work ["Remaining / Future Work (Task 6)"]
+        H --> I["GCP Shape Classifier (3-Class Model)"]
+        I --> J["Output: Cross / Square / L-Shape"]
+    end
+
+    style Implemented_Pipeline fill:#f0f9ff,stroke:#0288d1,stroke-width:2px
+    style Future_Work fill:#fff8e1,stroke:#ffa000,stroke-dasharray: 5 5,stroke-width:2px
+    style D fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style G fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style I fill:#fff3e0,stroke:#e65100,stroke-width:2px,stroke-dasharray: 5 5

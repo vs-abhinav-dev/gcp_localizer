@@ -1,0 +1,41 @@
+stages:
+  prepare_data:
+    cmd: python scripts/prepare_data.py --config configs/localizer.yaml
+    deps:
+      - scripts/prepare_data.py
+      - src/gcp_localizer/data/
+      - configs/localizer.yaml
+    outs:
+      - data/processed/
+
+  train_localizer:
+    cmd: python scripts/train_localizer.py --config configs/localizer.yaml
+    deps:
+      - scripts/train_localizer.py
+      - src/gcp_localizer/models/localizer.py
+      - src/gcp_localizer/training/localizer.py
+      - configs/localizer.yaml
+      - data/processed/
+    outs:
+      - artifacts/models/best_localizer_model.pt
+
+  train_classifier:
+    cmd: python scripts/train_classifier.py --config configs/classifier.yaml
+    deps:
+      - scripts/train_classifier.py
+      - src/gcp_localizer/models/classifier.py
+      - src/gcp_localizer/training/classifier.py
+      - configs/classifier.yaml
+      - data/processed/
+    outs:
+      - artifacts/models/best_classifier_model.pt
+
+  evaluate:
+    cmd: python scripts/evaluate.py --localizer-config configs/localizer.yaml --classifier-config configs/classifier.yaml
+    deps:
+      - scripts/evaluate.py
+      - src/gcp_localizer/evaluation/
+      - artifacts/models/best_localizer_model.pt
+      - artifacts/models/best_classifier_model.pt
+    outs:
+      - artifacts/plots/

@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gcp_localizer"
+version = "0.1.0"
+description = "GCP Marker Detection, Localization, and Classification Pipeline"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "pandas",
+    "opencv-python-headless",
+    "torch",
+    "torchvision",
+    "scikit-learn",
+    "tqdm",
+    "pyyaml",
+    "matplotlib",
+    "streamlit"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "dvc"
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

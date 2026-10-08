@@ -1,0 +1,19 @@
+graph TD
+    A["Raw Aerial Images (JSON Annotations)"] --> B["Image-Level Train/Val Split (85/15)"]
+    B --> C["Candidate Crop Generation"]
+    C --> D["512×512 Raw Tile Crops"]
+    D --> E["Coordinate Transformation"]
+    E --> F["Resize to 224×224"]
+    F --> G["Processed .npz Dataset"]
+    G --> H["GCP Presence Classifier (ResNet18)"]
+    H --> I{"GCP Present?"}
+    I -- "No (Background)" --> J["Output: GCP Absent (Filter Out)"]
+    I -- "Yes (Marker Detected)" --> K["GCP Localizer (ResNet18 Regression)"]
+    K --> L["Output: (x, y) Center Coordinates"]
+
+    style A fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style G fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style H fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style K fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style J fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+    style L fill:#e8f5e9,stroke:#388e3c,stroke-width:2px

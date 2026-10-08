@@ -1,0 +1,53 @@
+============================================================
+GCP LOCALIZER - MODEL AND PIPELINE SUMMARY
+============================================================
+
+1. PREPROCESSING & DATASET CONFIGURATION
+------------------------------------------------------------
+- Preprocessing Candidate Crop Input Size : 512x512 pixels
+- Processed Model Input Size             : 224x224 pixels (3 channels RGB)
+- Validation Split Ratio                   : 0.15 (15% validation split)
+- Positive Augmentations per Image (Train) : 5
+- Negative Samples per Image (Train)       : 5
+- Max Jitter Offset (Train)               : 128 pixels
+- Random Seed                              : 42
+
+2. DATASET SPLIT SIZES
+------------------------------------------------------------
+- Processed Data Location: /run/media/MrShah_21/48A291915D5A64CF/processed
+- Train Positive Tiles   : 4250
+- Train Negative Tiles   : 4250
+- Total Train Samples    : 8500
+- Val Positive Tiles     : 150
+- Val Negative Tiles     : 150
+- Total Val Samples      : 300
+- Overall Dataset Tiles  : 8800
+
+3. GCP LOCALIZER MODEL ARCHITECTURE
+------------------------------------------------------------
+- Backbone Architecture : ResNet18 (ImageNet pretrained weights)
+- Custom Output Head    : Sequential(Linear(512 -> 256), ReLU(), Dropout(p=0.2), Linear(256 -> 2))
+- Output Dimensions     : (B, 2) relative tile coordinates (x, y)
+- Loss Function         : L1Loss (Mean Absolute Error)
+- Optimizer             : Adam
+- Learning Rate         : 0.0001
+- Batch Size            : 32
+- Number of Epochs      : 30
+- Checkpoint Path       : artifacts/models/best_localizer_model.pt
+
+4. GCP PRESENCE CLASSIFIER ARCHITECTURE
+------------------------------------------------------------
+- Backbone Architecture : ResNet18 (ImageNet pretrained weights)
+- Custom Output Head    : Linear(512 -> 2)
+- Output Dimensions     : (B, 2) classification logits (0: GCP Absent, 1: GCP Present)
+- Loss Function         : CrossEntropyLoss
+- Optimizer             : Adam
+- Learning Rate         : 0.0001
+- Batch Size            : 32
+- Number of Epochs      : 20
+- Checkpoint Path       : artifacts/models/best_classifier_model.pt
+
+5. INTEGRATED INFERENCE PIPELINE
+------------------------------------------------------------
+- Stage 1: GCP Presence Filter (GCPClassifier thresholding at argmax / 50% probability)
+- Stage 2: GCP Center Localization (GCPLocalizer predicts (x, y) if present)

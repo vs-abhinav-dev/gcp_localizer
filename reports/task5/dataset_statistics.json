@@ -1,0 +1,24 @@
+{
+  "raw_annotation_file": "/run/media/MrShah_21/48A291915D5A64CF/raw/gcp_marks.json",
+  "processed_dir": "/run/media/MrShah_21/48A291915D5A64CF/processed",
+  "source_images": {
+    "total_raw_annotated_images": 1000,
+    "train_source_images_count": 850,
+    "val_source_images_count": 150,
+    "data_leakage_check_passed": true,
+    "train_val_intersection_count": 0
+  },
+  "crop_tiles": {
+    "train_positive_count": 4250,
+    "train_negative_count": 4250,
+    "total_train_count": 8500,
+    "val_positive_count": 150,
+    "val_negative_count": 150,
+    "total_val_count": 300,
+    "overall_total_count": 8800
+  },
+  "tile_dimensions": {
+    "candidate_crop_size": "512x512",
+    "model_input_size": "224x224x3"
+  }
+}

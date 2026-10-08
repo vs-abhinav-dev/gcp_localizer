@@ -1,0 +1,28 @@
+============================================================
+GCP LOCALIZER - DATASET & PIPELINE STATISTICS
+============================================================
+
+1. SOURCE IMAGE SPLIT & LEAKAGE VERIFICATION
+------------------------------------------------------------
+- Raw Annotation File               : /run/media/MrShah_21/48A291915D5A64CF/raw/gcp_marks.json
+- Total Raw Annotated Source Images : 1000
+- Training Source Images Count       : 850
+- Validation Source Images Count     : 150
+- Data Leakage Check (train ∩ val)   : PASSED (0 overlapping images)
+
+2. CROP TILE BALANCING & COUNTS
+------------------------------------------------------------
+- Processed Dataset Root : /run/media/MrShah_21/48A291915D5A64CF/processed
+- Train Positive Tiles   : 4250
+- Train Negative Tiles   : 4250
+- Total Training Tiles   : 8500
+- Val Positive Tiles     : 150
+- Val Negative Tiles     : 150
+- Total Validation Tiles : 300
+- Overall Tile Count     : 8800
+
+3. DIMENSIONS & FORMAT
+------------------------------------------------------------
+- Candidate Crop Bounding Size : 512x512 pixels
+- Resized Model Input Size     : 224x224 pixels (RGB, 3 channels)
+- Tile File Container Format   : Compressed NumPy Binary (.npz)

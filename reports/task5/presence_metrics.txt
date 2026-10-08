@@ -1,0 +1,16 @@
+============================================================
+GCP PRESENCE CLASSIFICATION METRICS
+============================================================
+Dataset Evaluated : Held-out Validation Set
+Total Samples     : 300 (150 Positive, 150 Negative)
+
+CLASSIFICATION PERFORMANCE METRICS:
+- Accuracy  : 100.00% (1.0000)
+- Precision : 100.00% (1.0000)
+- Recall    : 100.00% (1.0000)
+- F1-Score  : 100.00% (1.0000)
+
+CONFUSION MATRIX:
+                  Predicted Negative (0)    Predicted Positive (1)
+True Negative (0)        150                     0                      
+True Positive (1)        0                       150                    

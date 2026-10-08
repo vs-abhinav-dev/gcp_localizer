@@ -1,0 +1,9 @@
+============================================================
+GCP LOCALIZER - INTEGRATION / SMOKE TEST RESULTS
+============================================================
+PASS: processed dataset loading
+PASS: presence classification
+PASS: localization
+PASS: integrated inference
+------------------------------------------------------------
+ALL INTEGRATION TESTS PASSED SUCCESSFULLY.

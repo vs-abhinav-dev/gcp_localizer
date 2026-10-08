@@ -1,0 +1,16 @@
+{
+  "evaluation_dataset": "Validation Set (val/positive + val/negative)",
+  "total_samples": 300,
+  "positive_samples": 150,
+  "negative_samples": 150,
+  "accuracy": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "f1_score": 1.0,
+  "confusion_matrix": {
+    "true_negative": 150,
+    "false_positive": 0,
+    "false_negative": 0,
+    "true_positive": 150
+  }
+}

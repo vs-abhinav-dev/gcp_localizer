@@ -1,0 +1,18 @@
+============================================================
+GCP LOCALIZATION EVALUATION METRICS
+============================================================
+Dataset Evaluated : Held-out Validation Set (val/positive)
+Total Samples     : 150
+
+OVERALL ERROR METRICS:
+- Mean Absolute / Euclidean Error (MAE) : 1.2674 pixels
+- Median Euclidean Error                : 0.9313 pixels
+- Maximum Euclidean Error               : 24.4557 pixels
+- Minimum Euclidean Error               : 0.0888 pixels
+- Standard Deviation                    : 2.1245 pixels
+
+PER-SHAPE BREAKDOWN:
+- Shape: L-Shape      | Count:  77 | MAE: 1.0602 px | Median: 0.8994 px
+- Shape: Square       | Count:  40 | MAE: 1.1633 px | Median: 0.7374 px
+- Shape: Cross        | Count:  32 | MAE: 1.9050 px | Median: 1.0759 px
+- Shape: Unknown      | Count:   1 | MAE: 0.9843 px | Median: 0.9843 px
