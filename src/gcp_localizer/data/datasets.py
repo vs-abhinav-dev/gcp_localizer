@@ -15,6 +15,30 @@ def preprocess_image_tensor(image_np: np.ndarray) -> torch.Tensor:
     return torch.tensor(img.transpose(2, 0, 1), dtype=torch.float32)
 
 
+def get_shape_transforms(is_train: bool = True) -> Any:
+    """Get torchvision transforms for GCP shape classification.
+
+    Applies rotational and reflective invariance critical for drone aerial viewpoints.
+    """
+    from torchvision import transforms
+
+    if is_train:
+        return transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomVerticalFlip(p=0.5),
+            transforms.RandomRotation(degrees=180),
+            transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+    return transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+
+
 class FastGCPDataset(Dataset):
     """PyTorch Dataset for GCP center coordinate localization (regression)."""
 
@@ -65,13 +89,25 @@ class ShapeDataset(Dataset):
     }
     IDX_TO_SHAPE: Dict[int, str] = {v: k for k, v in SHAPE_TO_IDX.items()}
 
-    def __init__(self, files: List[Union[str, Path]]):
+    def __init__(
+        self,
+        files: List[Union[str, Path]],
+        transform: Optional[Any] = None,
+        is_train: bool = False
+    ):
         self.files = []
         for f in files:
             data = np.load(f, allow_pickle=True)
             shape = str(data["shape"]) if "shape" in data.files else "Unknown"
             if shape in self.SHAPE_TO_IDX:
                 self.files.append(str(f))
+
+        if transform is not None:
+            self.transform = transform
+        elif is_train:
+            self.transform = get_shape_transforms(is_train=True)
+        else:
+            self.transform = None
 
     def __len__(self) -> int:
         return len(self.files)
@@ -81,7 +117,10 @@ class ShapeDataset(Dataset):
         image = data["image"]
         shape = str(data["shape"])
 
-        image_tensor = preprocess_image_tensor(image)
+        if self.transform is not None:
+            image_tensor = self.transform(image)
+        else:
+            image_tensor = preprocess_image_tensor(image)
         label_tensor = torch.tensor(self.SHAPE_TO_IDX[shape], dtype=torch.long)
 
         return image_tensor, label_tensor
@@ -94,10 +133,11 @@ class RawShapeDataset(Dataset):
         self,
         annotations: Dict[str, Any],
         raw_images_dir: Union[str, Path],
-        crop_size: int = 512,
+        crop_size: int = 256,
         output_size: int = 224,
         is_train: bool = True,
-        max_offset: int = 64,
+        max_offset: Optional[int] = None,
+        transform: Optional[Any] = None,
         shape_to_idx: Optional[Dict[str, int]] = None
     ):
         import cv2
@@ -107,9 +147,18 @@ class RawShapeDataset(Dataset):
         self.crop_size = crop_size
         self.output_size = output_size
         self.is_train = is_train
-        self.max_offset = max_offset
+        if max_offset is not None:
+            self.max_offset = max_offset
+        else:
+            self.max_offset = 16 if is_train else 0
+
         self.shape_to_idx = shape_to_idx or ShapeDataset.SHAPE_TO_IDX
         self._crop_fn = crop_positive_sample
+
+        if transform is not None:
+            self.transform = transform
+        else:
+            self.transform = get_shape_transforms(is_train=is_train)
 
         self.samples = []
         for rel_path, info in annotations.items():
@@ -152,7 +201,10 @@ class RawShapeDataset(Dataset):
         )
 
         crop_img = crop_res["image"]
-        img_tensor = preprocess_image_tensor(crop_img)
+        if self.transform is not None:
+            img_tensor = self.transform(crop_img)
+        else:
+            img_tensor = preprocess_image_tensor(crop_img)
         label_tensor = torch.tensor(self.shape_to_idx[sample["shape"]], dtype=torch.long)
         return img_tensor, label_tensor
 

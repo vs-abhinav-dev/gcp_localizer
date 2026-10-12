@@ -34,6 +34,7 @@ class GCPPredictor:
         tile_size: int = 512,
         tile_stride: int = 128,
         model_input_size: int = 224,
+        shape_crop_size: Optional[int] = None,
     ):
         if device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -43,6 +44,7 @@ class GCPPredictor:
         self.tile_size = tile_size
         self.tile_stride = tile_stride
         self.model_input_size = model_input_size
+        self.shape_crop_size = shape_crop_size or tile_size
 
         # 1. Initialize Localizer
         self.localizer_model = self._load_localizer(localizer_model)
@@ -81,21 +83,46 @@ class GCPPredictor:
         if isinstance(model_or_path, nn.Module):
             return model_or_path
 
-        classifier = GCPShapeClassifier(num_classes=3, pretrained=False)
         candidate_paths = [
             model_or_path,
-            "models/classifier.pt",
             "artifacts/models/best_shape_model.pt",
         ]
         for p in candidate_paths:
             if p is not None and Path(p).exists():
-                state_dict = torch.load(p, map_location="cpu")
-                # Check fc weight size to verify num_classes == 3
-                fc_weight = state_dict.get("backbone.fc.weight", state_dict.get("fc.weight"))
-                if fc_weight is not None and fc_weight.shape[0] == 3:
-                    classifier.load_state_dict(state_dict)
-                    print(f"[GCPPredictor] Loaded shape classifier checkpoint from {p}")
-                    return classifier
+                try:
+                    state_dict = torch.load(p, map_location="cpu")
+                    # Check if model has MLP Sequential head (e.g., backbone.fc.0.weight and backbone.fc.3 or 4.weight)
+                    mlp_weights = [
+                        k for k in state_dict.keys()
+                        if (k.startswith("backbone.fc.") or k.startswith("fc."))
+                        and k.endswith(".weight")
+                        and k not in ("backbone.fc.weight", "fc.weight")
+                    ]
+                    if mlp_weights:
+                        first_key = sorted(mlp_weights)[0]
+                        last_key = sorted(mlp_weights)[-1]
+                        hidden_dim = state_dict[first_key].shape[0]
+                        num_classes = state_dict[last_key].shape[0]
+                        if num_classes == 3:
+                            has_dropout_layer = any(".4." in k for k in mlp_weights)
+                            classifier = GCPShapeClassifier(
+                                num_classes=3,
+                                pretrained=False,
+                                hidden_dim=hidden_dim,
+                                dropout=0.3 if has_dropout_layer else 0.0
+                            )
+                            classifier.load_state_dict(state_dict)
+                            print(f"[GCPPredictor] Loaded MLP shape classifier checkpoint ({hidden_dim} hidden) from {p}")
+                            return classifier
+                    else:
+                        fc_weight = state_dict.get("backbone.fc.weight", state_dict.get("fc.weight"))
+                        if fc_weight is not None and fc_weight.shape[0] == 3:
+                            classifier = GCPShapeClassifier(num_classes=3, pretrained=False)
+                            classifier.load_state_dict(state_dict)
+                            print(f"[GCPPredictor] Loaded shape classifier checkpoint from {p}")
+                            return classifier
+                except Exception as e:
+                    print(f"[GCPPredictor] Warning: Failed to load checkpoint {p}: {e}")
 
         print("[GCPPredictor] No 3-class shape classifier checkpoint found. Initializing with pretrained weights.")
         return GCPShapeClassifier(num_classes=3, pretrained=True)
@@ -177,15 +204,22 @@ class GCPPredictor:
         y = max(0, min(h - self.tile_size, cy - half))
         return image[y:y + self.tile_size, x:x + self.tile_size], x, y
 
-    def _extract_centered_crop(self, image: np.ndarray, cx: float, cy: float) -> np.ndarray:
+    def _extract_centered_crop(
+        self,
+        image: np.ndarray,
+        cx: float,
+        cy: float,
+        crop_size: Optional[int] = None
+    ) -> np.ndarray:
         """Extract centered tile around (cx, cy) following preprocessing conventions with border reflection/padding."""
         h, w = image.shape[:2]
-        half = self.tile_size // 2
+        size = crop_size or self.shape_crop_size
+        half = size // 2
 
         x1 = int(round(cx - half))
         y1 = int(round(cy - half))
-        x2 = x1 + self.tile_size
-        y2 = y1 + self.tile_size
+        x2 = x1 + size
+        y2 = y1 + size
 
         pad_left = max(0, -x1)
         pad_top = max(0, -y1)

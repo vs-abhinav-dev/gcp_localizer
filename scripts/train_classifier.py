@@ -25,9 +25,9 @@ def create_synthetic_shape_dataset(num_samples: int = 60) -> Tuple[DataLoader, D
     """Create in-memory synthetic dataset for smoke tests and verification."""
     from torch.utils.data import TensorDataset
     torch.manual_seed(42)
-    # 3 classes: 0, 1, 2
+    # 3 balanced classes: 0, 1, 2
     images = torch.randn(num_samples, 3, 224, 224)
-    labels = torch.randint(0, 3, (num_samples,))
+    labels = torch.tensor([i % 3 for i in range(num_samples)], dtype=torch.long)
 
     split = int(0.8 * num_samples)
     train_ds = TensorDataset(images[:split], labels[:split])
@@ -77,6 +77,36 @@ def main():
         help="Learning rate (overrides config)."
     )
     parser.add_argument(
+        "--crop-size",
+        type=int,
+        default=None,
+        help="Crop size for marker tiles (e.g. 256 for tight zoom, 512 for wide)."
+    )
+    parser.add_argument(
+        "--max-offset",
+        type=int,
+        default=None,
+        help="Max random offset jitter for training crops (e.g. 16 for centered micro-jitter)."
+    )
+    parser.add_argument(
+        "--dropout",
+        type=float,
+        default=None,
+        help="Dropout probability in classifier head (e.g. 0.3)."
+    )
+    parser.add_argument(
+        "--hidden-dim",
+        type=int,
+        default=None,
+        help="Hidden projection dimension for MLP head (e.g. 256)."
+    )
+    parser.add_argument(
+        "--label-smoothing",
+        type=float,
+        default=None,
+        help="Label smoothing factor for cross-entropy (e.g. 0.05)."
+    )
+    parser.add_argument(
         "--save-path",
         type=str,
         default=None,
@@ -111,19 +141,29 @@ def main():
     # Determine hyperparameters
     num_classes = model_cfg.get("num_classes", 3)
     pretrained = model_cfg.get("pretrained", True)
+    hidden_dim = args.hidden_dim or model_cfg.get("hidden_dim", 256)
+    dropout = args.dropout if args.dropout is not None else model_cfg.get("dropout", 0.3)
     num_epochs = args.epochs or train_cfg.get("num_epochs", 20)
     batch_size = args.batch_size or train_cfg.get("batch_size", 32)
     lr = args.lr or train_cfg.get("learning_rate", 1e-4)
     weight_decay = train_cfg.get("weight_decay", 1e-4)
     num_workers = train_cfg.get("num_workers", 2)
+    label_smoothing = args.label_smoothing if args.label_smoothing is not None else train_cfg.get("label_smoothing", 0.05)
+    class_weights = train_cfg.get("class_weights", "balanced")
+    scheduler_type = train_cfg.get("scheduler", "cosine")
+    crop_size = args.crop_size or data_cfg.get("crop_size", 256)
+    max_offset = args.max_offset if args.max_offset is not None else data_cfg.get("max_offset", 16)
     save_path = args.save_path or train_cfg.get("save_path", "models/classifier.pt")
 
     print("==================================================")
-    print(" GCP Shape Classifier Training")
+    print(" GCP Shape Classifier Training (Enhanced)")
     print("==================================================")
     print(f"Config: {config_path}")
     print(f"Num Classes: {num_classes} (0: L-Shape, 1: Square, 2: Cross)")
+    print(f"Architecture: ResNet18 + MLP Head (hidden={hidden_dim}, dropout={dropout})")
+    print(f"Crop Size: {crop_size} px | Max Offset Jitter: {max_offset} px")
     print(f"Epochs: {num_epochs} | Batch Size: {batch_size} | LR: {lr} | Weight Decay: {weight_decay}")
+    print(f"Loss: CrossEntropy (weights={class_weights}, smoothing={label_smoothing}) | Scheduler: {scheduler_type}")
     print(f"Target Checkpoint: {save_path}")
 
     # Case 1: Synthetic flag passed
@@ -145,11 +185,11 @@ def main():
 
         if train_pos_files and val_pos_files:
             print(f"Found preprocessed crops: {len(train_pos_files)} train, {len(val_pos_files)} val.")
-            train_ds = ShapeDataset(train_pos_files)
-            val_ds = ShapeDataset(val_pos_files)
+            train_ds = ShapeDataset(train_pos_files, is_train=True)
+            val_ds = ShapeDataset(val_pos_files, is_train=False)
 
             if len(train_ds) > 0:
-                print(f"Loaded ShapeDataset: {len(train_ds)} train shapes, {len(val_ds)} val shapes.")
+                print(f"Loaded ShapeDataset with augmentations: {len(train_ds)} train shapes, {len(val_ds)} val shapes.")
                 train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=num_workers)
                 val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
@@ -161,11 +201,25 @@ def main():
             seed = data_cfg.get("seed", 42)
             train_anns, val_anns = split_annotations(annotations, val_ratio=val_ratio, seed=seed)
 
-            train_ds = RawShapeDataset(train_anns, raw_images_dir, is_train=True)
-            val_ds = RawShapeDataset(val_anns, raw_images_dir, is_train=False)
+            train_ds = RawShapeDataset(
+                train_anns,
+                raw_images_dir,
+                crop_size=crop_size,
+                output_size=data_cfg.get("output_size", 224),
+                is_train=True,
+                max_offset=max_offset,
+            )
+            val_ds = RawShapeDataset(
+                val_anns,
+                raw_images_dir,
+                crop_size=crop_size,
+                output_size=data_cfg.get("output_size", 224),
+                is_train=False,
+                max_offset=0,
+            )
 
             if len(train_ds) > 0:
-                print(f"Loaded RawShapeDataset: {len(train_ds)} train shapes, {len(val_ds)} val shapes.")
+                print(f"Loaded RawShapeDataset with augmentations (crop={crop_size}px, jitter={max_offset}px): {len(train_ds)} train, {len(val_ds)} val.")
                 train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=num_workers)
                 val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
@@ -178,10 +232,15 @@ def main():
             print("Running in verification synthetic mode (--synthetic)...")
             train_loader, val_loader = create_synthetic_shape_dataset()
 
-    # Instantiate Shape Classifier Model
-    model = GCPShapeClassifier(num_classes=num_classes, pretrained=pretrained)
+    # Instantiate Shape Classifier Model with MLP projection head and dropout
+    model = GCPShapeClassifier(
+        num_classes=num_classes,
+        pretrained=pretrained,
+        dropout=dropout,
+        hidden_dim=hidden_dim,
+    )
 
-    # Train Model
+    # Train Model with balanced class weighting and learning rate scheduling
     history = train_classifier(
         model=model,
         train_loader=train_loader,
@@ -189,6 +248,9 @@ def main():
         num_epochs=num_epochs,
         learning_rate=lr,
         weight_decay=weight_decay,
+        class_weights=class_weights,
+        label_smoothing=label_smoothing,
+        scheduler_type=scheduler_type,
         save_path=save_path,
     )
 

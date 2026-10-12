@@ -28,7 +28,7 @@ stages:
       - configs/classifier.yaml
       - data/processed/
     outs:
-      - artifacts/models/best_classifier_model.pt
+      - artifacts/models/best_shape_model.pt
 
   evaluate:
     cmd: python scripts/evaluate.py --localizer-config configs/localizer.yaml --classifier-config configs/classifier.yaml

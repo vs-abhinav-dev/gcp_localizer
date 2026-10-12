@@ -28,15 +28,35 @@ class GCPClassifier(nn.Module):
         self,
         num_classes: int = 2,
         pretrained: bool = True,
+        dropout: float = 0.0,
+        hidden_dim: Optional[int] = None,
         idx_to_class: Optional[Dict[int, str]] = None
     ):
         super().__init__()
         self.num_classes = num_classes
+        self.dropout = dropout
+        self.hidden_dim = hidden_dim
         weights = ResNet18_Weights.IMAGENET1K_V1 if pretrained else None
         self.backbone = resnet18(weights=weights)
 
         in_features = self.backbone.fc.in_features
-        self.backbone.fc = nn.Linear(in_features, num_classes)
+        if hidden_dim is not None:
+            layers = [
+                nn.Linear(in_features, hidden_dim),
+                nn.BatchNorm1d(hidden_dim),
+                nn.ReLU(inplace=True),
+            ]
+            if dropout > 0:
+                layers.append(nn.Dropout(dropout))
+            layers.append(nn.Linear(hidden_dim, num_classes))
+            self.backbone.fc = nn.Sequential(*layers)
+        elif dropout > 0:
+            self.backbone.fc = nn.Sequential(
+                nn.Dropout(dropout),
+                nn.Linear(in_features, num_classes)
+            )
+        else:
+            self.backbone.fc = nn.Linear(in_features, num_classes)
 
         if idx_to_class is not None:
             self.idx_to_class = idx_to_class
@@ -130,11 +150,15 @@ class GCPShapeClassifier(GCPClassifier):
         self,
         num_classes: int = 3,
         pretrained: bool = True,
+        dropout: float = 0.0,
+        hidden_dim: Optional[int] = None,
         idx_to_shape: Optional[Dict[int, str]] = None
     ):
         super().__init__(
             num_classes=num_classes,
             pretrained=pretrained,
+            dropout=dropout,
+            hidden_dim=hidden_dim,
             idx_to_class=idx_to_shape or self.IDX_TO_SHAPE
         )
 

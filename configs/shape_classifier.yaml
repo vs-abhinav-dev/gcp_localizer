@@ -1,0 +1,31 @@
+# GCP Shape Classifier Model Configuration
+
+data:
+  annotation_file: "data/raw/gcp_marks.json"
+  raw_images_dir: "data/raw/train_dataset"
+  processed_dir: "data/processed"
+  val_ratio: 0.15
+  crop_size: 256
+  output_size: 224
+  max_offset: 16
+  num_pos_aug: 5
+  seed: 42
+
+model:
+  name: resnet18
+  pretrained: true
+  num_classes: 3
+  dropout: 0.3
+  hidden_dim: 256
+
+training:
+  batch_size: 32
+  num_epochs: 30
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  num_workers: 2
+  label_smoothing: 0.05
+  class_weights: "balanced"
+  scheduler: "cosine"
+  save_path: "artifacts/models/best_shape_model.pt"
+
